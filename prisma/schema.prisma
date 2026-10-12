@@ -1,0 +1,114 @@
+// Prisma schema for the tournament management backend.
+//
+// SQLite is used so the app stays self-contained (a single file DB, no
+// external database server required). The database file lives at
+// `prisma/dev.db` and is created automatically on first run.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = "file:./dev.db"
+}
+
+/// A fighting-game tournament event.
+model Tournament {
+  id        String   @id
+  title     String
+  game      String
+  date      String
+  time      String
+  capacity  Int
+  format    String
+  // SQLite has no native enum; status is one of "open" | "live" | "done".
+  status    String   @default("open")
+  // Entry fee in whole euros, used for payment tracking.
+  entryFee  Int      @default(10)
+  venue     String   @default("")
+
+  players Player[]
+  matches Match[]
+  setups  Setup[]
+  needs   Need[]
+  tasks   Task[]
+
+  @@map("tournaments")
+}
+
+model Player {
+  id          String     @id
+  name        String
+  character   String     @default("—")
+  paid        Boolean    @default(false)
+  checkedIn   Boolean    @default(false)
+  // Bracket seed position (1-based). Assigned when the bracket is generated.
+  seed        Int?
+  tournamentId String
+  tournament  Tournament @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
+
+  @@map("players")
+}
+
+model Match {
+  id          String     @id
+  round       String
+  playerA     String
+  playerB     String
+  scoreA      Int        @default(0)
+  scoreB      Int        @default(0)
+  live        Boolean    @default(false)
+  // Optional setup station identifier, e.g. "03".
+  setup       String?
+  // 0 = not yet reported, 1 = A won, 2 = B won.
+  winner      Int        @default(0)
+  tournamentId String
+  tournament  Tournament @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
+
+  @@map("matches")
+}
+
+model Setup {
+  id           String     @id
+  label        String
+  hardware     String
+  // "free" | "busy"
+  status       String     @default("free")
+  currentMatch String?
+  tournamentId String
+  tournament   Tournament @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
+
+  @@map("setups")
+}
+
+model Need {
+  id          String     @id
+  item        String
+  gross       Int
+  stock       Int
+  recoverable Int
+  action      String
+  deadline    String
+  // Whether the deficit has been resolved/covered.
+  resolved    Boolean    @default(false)
+  tournamentId String
+  tournament  Tournament @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
+
+  @@map("needs")
+}
+
+model Task {
+  id          String     @id
+  milestone   String
+  date        String
+  label       String
+  owner       String
+  done        Boolean    @default(false)
+  // Whether this task represents the event day itself.
+  event       Boolean    @default(false)
+  tournamentId String
+  tournament  Tournament @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
+
+  @@map("tasks")
+}
